@@ -1,0 +1,1329 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Topox — Escanea catálogos, exporta a Excel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+      :root {
+        --bg: #12151a;
+        --bg-panel: #181c23;
+        --bg-panel-raised: #1f2530;
+        --text: #edeae3;
+        --text-dim: #8b919c;
+        --text-faint: #565d68;
+        --accent: #ff6b35;
+        --accent-soft: rgba(255, 107, 53, 0.14);
+        --accent-dim: #c9522a;
+        --success: #3ddc97;
+        --success-soft: rgba(61, 220, 151, 0.12);
+        --error: #ff5c5c;
+        --error-soft: rgba(255, 92, 92, 0.12);
+        --border: #262b33;
+        --border-soft: #1e232b;
+        --radius: 10px;
+        --font-display: "Space Grotesk", sans-serif;
+        --font-body: "Inter", sans-serif;
+        --font-mono: "IBM Plex Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-body);
+        min-height: 100vh;
+      }
+
+      body {
+        background-image:
+          radial-gradient(
+            circle at 15% 0%,
+            rgba(255, 107, 53, 0.06),
+            transparent 40%
+          ),
+          radial-gradient(
+            circle at 100% 30%,
+            rgba(61, 220, 151, 0.04),
+            transparent 35%
+          );
+        background-attachment: fixed;
+      }
+
+      ::selection {
+        background: var(--accent-soft);
+        color: var(--text);
+      }
+
+      /* ---------- Layout shell ---------- */
+
+      .shell {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 28px 24px 80px;
+      }
+
+      header.topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 28px;
+        border-bottom: 1px solid var(--border-soft);
+        margin-bottom: 40px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand-mark {
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+        position: relative;
+        flex-shrink: 0;
+      }
+      .brand-mark::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 14%;
+        width: 72%;
+        height: 2px;
+        background: rgba(18, 21, 26, 0.85);
+        transform: translateY(-50%);
+        box-shadow:
+          0 6px 0 rgba(18, 21, 26, 0.5),
+          0 -6px 0 rgba(18, 21, 26, 0.5);
+      }
+
+      .brand-name {
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: 19px;
+        letter-spacing: -0.01em;
+      }
+
+      .brand-tag {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-faint);
+        letter-spacing: 0.04em;
+        margin-top: 1px;
+      }
+
+      .status-pill {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-dim);
+        border: 1px solid var(--border);
+        padding: 6px 12px;
+        border-radius: 100px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--success);
+        box-shadow: 0 0 0 3px var(--success-soft);
+      }
+
+      /* ---------- Hero / scan panel ---------- */
+
+      .hero {
+        margin-bottom: 18px;
+      }
+
+      .hero h1 {
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: clamp(28px, 4vw, 38px);
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+        max-width: 640px;
+      }
+
+      .hero p {
+        color: var(--text-dim);
+        font-size: 15px;
+        margin-top: 12px;
+        max-width: 520px;
+        line-height: 1.55;
+      }
+
+      .scan-panel {
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        margin-top: 28px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .scan-row {
+        display: flex;
+        gap: 10px;
+      }
+
+      .url-field {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0 14px;
+        transition: border-color 0.15s ease;
+      }
+
+      .url-field:focus-within {
+        border-color: var(--accent-dim);
+      }
+
+      .url-field svg {
+        flex-shrink: 0;
+        color: var(--text-faint);
+      }
+
+      .url-field input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 13.5px;
+        padding: 14px 0;
+      }
+
+      .url-field input::placeholder {
+        color: var(--text-faint);
+      }
+
+      button {
+        font-family: var(--font-body);
+        cursor: pointer;
+        border: none;
+        outline: none;
+      }
+
+      .btn-scan {
+        background: var(--accent);
+        color: #1a1108;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 0 22px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition:
+          filter 0.15s ease,
+          transform 0.1s ease;
+        white-space: nowrap;
+      }
+
+      .btn-scan:hover {
+        filter: brightness(1.08);
+      }
+      .btn-scan:active {
+        transform: scale(0.98);
+      }
+      .btn-scan:disabled {
+        background: var(--bg-panel-raised);
+        color: var(--text-faint);
+        cursor: not-allowed;
+      }
+
+      .options-toggle {
+        margin-top: 14px;
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        color: var(--text-faint);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        width: fit-content;
+        user-select: none;
+      }
+      .options-toggle:hover {
+        color: var(--text-dim);
+      }
+      .options-toggle .chev {
+        transition: transform 0.15s ease;
+        font-size: 9px;
+      }
+      .options-toggle.open .chev {
+        transform: rotate(90deg);
+      }
+
+      .options-panel {
+        display: none;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-soft);
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .options-panel.open {
+        display: grid;
+      }
+
+      .field-group label {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        color: var(--text-faint);
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        margin-bottom: 7px;
+      }
+
+      .field-group input,
+      .field-group select {
+        width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        padding: 9px 12px;
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+      }
+
+      .field-group input:focus,
+      .field-group select:focus {
+        outline: none;
+        border-color: var(--accent-dim);
+      }
+
+      .field-hint {
+        font-size: 10.5px;
+        color: var(--text-faint);
+        margin-top: 5px;
+        line-height: 1.4;
+      }
+
+      /* scanline sweep, shown only while scanning */
+      .sweep {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--accent),
+          transparent
+        );
+        opacity: 0;
+        pointer-events: none;
+      }
+      .sweep.active {
+        animation: sweep-move 1.6s linear infinite;
+        opacity: 1;
+      }
+      @keyframes sweep-move {
+        0% {
+          top: 0;
+          opacity: 0;
+        }
+        8% {
+          opacity: 1;
+        }
+        92% {
+          opacity: 1;
+        }
+        100% {
+          top: 100%;
+          opacity: 0;
+        }
+      }
+
+      /* ---------- Live log ---------- */
+
+      .log-panel {
+        display: none;
+        margin-top: 22px;
+        background: var(--bg);
+        border: 1px solid var(--border-soft);
+        border-radius: 8px;
+        padding: 14px 16px;
+        max-height: 160px;
+        overflow-y: auto;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        line-height: 1.9;
+      }
+      .log-panel.visible {
+        display: block;
+      }
+
+      .log-line {
+        color: var(--text-dim);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .log-line .tag {
+        color: var(--accent);
+      }
+      .log-line .ok {
+        color: var(--success);
+      }
+      .log-line .err {
+        color: var(--error);
+      }
+
+      /* ---------- Results ---------- */
+
+      .results-section {
+        margin-top: 40px;
+        display: none;
+      }
+      .results-section.visible {
+        display: block;
+      }
+
+      .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .results-title {
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 18px;
+      }
+
+      .results-count {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-faint);
+        margin-left: 8px;
+      }
+
+      .btn-export {
+        background: var(--success-soft);
+        color: var(--success);
+        font-weight: 600;
+        font-size: 13.5px;
+        padding: 10px 18px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: filter 0.15s ease;
+      }
+      .btn-export:hover {
+        filter: brightness(1.15);
+      }
+      .btn-export:disabled {
+        background: var(--bg-panel-raised);
+        color: var(--text-faint);
+        cursor: not-allowed;
+      }
+
+      .table-wrap {
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      thead th {
+        text-align: left;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-faint);
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg-panel-raised);
+        white-space: nowrap;
+      }
+
+      tbody td {
+        padding: 12px 16px;
+        font-size: 13px;
+        border-bottom: 1px solid var(--border-soft);
+        vertical-align: middle;
+        max-width: 240px;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+      tbody tr:hover {
+        background: rgba(255, 255, 255, 0.015);
+      }
+
+      .cell-thumb {
+        width: 36px;
+        height: 36px;
+        border-radius: 6px;
+        object-fit: cover;
+        background: var(--bg-panel-raised);
+        border: 1px solid var(--border);
+        display: block;
+      }
+
+      .cell-name {
+        font-weight: 500;
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .cell-price {
+        font-family: var(--font-mono);
+        color: var(--success);
+        white-space: nowrap;
+      }
+
+      .cell-muted {
+        color: var(--text-faint);
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .cell-link {
+        color: var(--text-dim);
+        text-decoration: none;
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+      }
+      .cell-link:hover {
+        color: var(--accent);
+      }
+
+      /* ---------- Empty / error states ---------- */
+
+      .empty-state {
+        display: none;
+        text-align: center;
+        padding: 50px 20px;
+        color: var(--text-faint);
+      }
+      .empty-state.visible {
+        display: block;
+      }
+      .empty-state .empty-title {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: var(--text-dim);
+        margin-bottom: 6px;
+      }
+      .empty-state .empty-body {
+        font-size: 12.5px;
+        max-width: 420px;
+        margin: 0 auto;
+        line-height: 1.6;
+      }
+
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: var(--bg-panel-raised);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+        padding: 12px 18px;
+        border-radius: 8px;
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.2s ease,
+          transform 0.2s ease;
+        z-index: 50;
+      }
+      .toast.error {
+        border-color: var(--error);
+        color: var(--error);
+      }
+      .toast.success {
+        border-color: var(--success);
+        color: var(--success);
+      }
+      .toast.visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      @media (max-width: 640px) {
+        .scan-row {
+          flex-direction: column;
+        }
+        .options-panel {
+          grid-template-columns: 1fr;
+        }
+        .table-wrap {
+          overflow-x: auto;
+        }
+        table {
+          min-width: 640px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sweep.active {
+          animation: none;
+          opacity: 0.6;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark"></div>
+          <div>
+            <div class="brand-name">Topox</div>
+            <div class="brand-tag">catálogo → excel</div>
+          </div>
+        </div>
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          <span id="statusText">listo</span>
+        </div>
+      </header>
+
+      <section class="hero">
+        <h1>Escanea un catálogo y descarga la lista de productos en Excel.</h1>
+        <p>
+          Pega la URL del sitio que vas a migrar. Topox detecta si el contenido
+          es estático o se genera con JavaScript, y arma la planilla por ti.
+        </p>
+
+        <div class="scan-panel">
+          <div class="sweep" id="sweep"></div>
+
+          <div class="scan-row">
+            <div class="url-field">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="7"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                type="text"
+                id="urlInput"
+                placeholder="https://tienda-ejemplo.com/productos"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <button class="btn-scan" id="scanBtn">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+              >
+                <path d="M5 12h14M13 5l7 7-7 7"></path>
+              </svg>
+              <span id="scanBtnLabel">Escanear</span>
+            </button>
+          </div>
+
+          <div class="options-toggle" id="optionsToggle">
+            <span class="chev">▸</span> opciones avanzadas
+          </div>
+
+          <div class="options-panel" id="optionsPanel">
+            <div class="field-group">
+              <label>Modo de escaneo</label>
+              <select id="modeSelect">
+                <option value="auto">Automático (recomendado)</option>
+                <option value="static">Forzar estático</option>
+                <option value="dynamic">Forzar dinámico (JS)</option>
+              </select>
+              <div class="field-hint">
+                Automático prueba estático primero y cambia a dinámico si no
+                encuentra productos.
+              </div>
+            </div>
+            <div class="field-group">
+              <label>Proxy CORS (opcional)</label>
+              <input
+                type="text"
+                id="proxyInput"
+                placeholder="https://tu-proxy.com/?url="
+                value="https://topox.fabiodevch.workers.dev/?url="
+              />
+              <div class="field-hint">
+                Necesario solo si el sitio bloquea peticiones desde el
+                navegador.
+              </div>
+            </div>
+            <div class="field-group">
+              <label>Selector de producto (opcional)</label>
+              <input
+                type="text"
+                id="selectorInput"
+                placeholder=".product-card, .product-item"
+              />
+              <div class="field-hint">
+                Si no se indica, Topox intenta detectarlo automáticamente.
+              </div>
+            </div>
+            <div class="field-group">
+              <label>Límite de productos</label>
+              <input
+                type="number"
+                id="limitInput"
+                placeholder="Sin límite"
+                min="1"
+              />
+              <div class="field-hint">
+                Útil para probar antes de escanear todo el catálogo.
+              </div>
+            </div>
+          </div>
+
+          <div class="log-panel" id="logPanel"></div>
+        </div>
+      </section>
+
+      <section class="results-section" id="resultsSection">
+        <div class="results-header">
+          <div>
+            <span class="results-title">Productos encontrados</span>
+            <span class="results-count" id="resultsCount">0</span>
+          </div>
+          <button class="btn-export" id="exportBtn" disabled>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Exportar a Excel
+          </button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>Nombre</th>
+                <th>Precio</th>
+                <th>SKU</th>
+                <th>URL</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="empty-state" id="emptyState">
+        <div class="empty-title">No se encontraron productos</div>
+        <div class="empty-body">
+          Prueba indicando un selector manual en opciones avanzadas, o forzando
+          el modo dinámico si el sitio carga su contenido con JavaScript.
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        // ---------- State ----------
+        let products = [];
+        let isScanning = false;
+
+        // ---------- DOM refs ----------
+        const urlInput = document.getElementById("urlInput");
+        const scanBtn = document.getElementById("scanBtn");
+        const scanBtnLabel = document.getElementById("scanBtnLabel");
+        const sweep = document.getElementById("sweep");
+        const logPanel = document.getElementById("logPanel");
+        const statusText = document.getElementById("statusText");
+        const optionsToggle = document.getElementById("optionsToggle");
+        const optionsPanel = document.getElementById("optionsPanel");
+        const modeSelect = document.getElementById("modeSelect");
+        const proxyInput = document.getElementById("proxyInput");
+        const selectorInput = document.getElementById("selectorInput");
+        const limitInput = document.getElementById("limitInput");
+        const resultsSection = document.getElementById("resultsSection");
+        const resultsCount = document.getElementById("resultsCount");
+        const resultsBody = document.getElementById("resultsBody");
+        const exportBtn = document.getElementById("exportBtn");
+        const emptyState = document.getElementById("emptyState");
+        const toast = document.getElementById("toast");
+
+        // ---------- UI helpers ----------
+
+        optionsToggle.addEventListener("click", () => {
+          optionsToggle.classList.toggle("open");
+          optionsPanel.classList.toggle("open");
+        });
+
+        function showToast(message, type) {
+          toast.textContent = message;
+          toast.className = "toast visible" + (type ? " " + type : "");
+          clearTimeout(showToast._t);
+          showToast._t = setTimeout(() => {
+            toast.classList.remove("visible");
+          }, 3800);
+        }
+
+        function setStatus(text) {
+          statusText.textContent = text;
+        }
+
+        function logLine(html) {
+          const line = document.createElement("div");
+          line.className = "log-line";
+          line.innerHTML = html;
+          logPanel.appendChild(line);
+          logPanel.scrollTop = logPanel.scrollHeight;
+        }
+
+        function resetLog() {
+          logPanel.innerHTML = "";
+          logPanel.classList.add("visible");
+        }
+
+        function setScanning(active) {
+          isScanning = active;
+          scanBtn.disabled = active;
+          sweep.classList.toggle("active", active);
+          scanBtnLabel.textContent = active ? "Escaneando…" : "Escanear";
+          setStatus(active ? "escaneando" : "listo");
+        }
+
+        // ---------- Fetch helpers ----------
+
+        async function fetchHtml(targetUrl, proxy) {
+          const fetchUrl = proxy
+            ? proxy + encodeURIComponent(targetUrl)
+            : targetUrl;
+          const res = await fetch(fetchUrl, { credentials: "omit" });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return await res.text();
+        }
+
+        // Renders the page inside a hidden iframe so its JS executes,
+        // then returns the resulting DOM document. Works for same-origin
+        // or pages that don't set restrictive frame/CSP headers.
+        function fetchRenderedDoc(targetUrl, timeoutMs) {
+          return new Promise((resolve, reject) => {
+            const iframe = document.createElement("iframe");
+            iframe.style.cssText =
+              "position:fixed;width:1280px;height:900px;top:-9999px;left:-9999px;opacity:0;pointer-events:none;";
+            iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
+
+            let settled = false;
+            const cleanup = () => {
+              if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+            };
+
+            const timer = setTimeout(() => {
+              if (settled) return;
+              settled = true;
+              try {
+                const doc = iframe.contentDocument;
+                cleanup();
+                if (doc) resolve(doc);
+                else
+                  reject(
+                    new Error(
+                      "No se pudo leer el contenido renderizado (posible bloqueo cross-origin).",
+                    ),
+                  );
+              } catch (e) {
+                cleanup();
+                reject(e);
+              }
+            }, timeoutMs || 4000);
+
+            iframe.addEventListener("error", () => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timer);
+              cleanup();
+              reject(new Error("El iframe no pudo cargar la página."));
+            });
+
+            document.body.appendChild(iframe);
+            iframe.src = targetUrl;
+          });
+        }
+
+        // ---------- Extraction heuristics ----------
+
+        const PRICE_REGEX =
+          /(\$|€|£|USD|MXN|COP|ARS|CLP|S\/|Bs\.?)\s?\d[\d.,]*/;
+        const CANDIDATE_SELECTORS = [
+          '[class*="product-card"]',
+          '[class*="product-item"]',
+          '[class*="product-tile"]',
+          '[class*="productCard"]',
+          '[class*="product-grid"] > *',
+          '[class*="grid-product"]',
+          '[itemtype*="Product"]',
+          '[class*="product"]',
+          'li[class*="item"]',
+          'a[href*="/producto/"]',
+          'a[href*="/product/"]',
+          'a[href*="/shop/"]',
+          'a[href*="/tienda/"]',
+          "article",
+        ];
+
+        function absoluteUrl(base, maybeRelative) {
+          try {
+            return new URL(maybeRelative, base).href;
+          } catch (e) {
+            return maybeRelative || "";
+          }
+        }
+
+        function extractFromJsonLd(doc, baseUrl) {
+          const found = [];
+          const scripts = doc.querySelectorAll(
+            'script[type="application/ld+json"]',
+          );
+          scripts.forEach((s) => {
+            try {
+              const data = JSON.parse(s.textContent);
+              const items = Array.isArray(data) ? data : [data];
+              items.forEach((item) => {
+                const list = item["@graph"] ? item["@graph"] : [item];
+                list.forEach((node) => {
+                  if (
+                    node &&
+                    (node["@type"] === "Product" ||
+                      (Array.isArray(node["@type"]) &&
+                        node["@type"].includes("Product")))
+                  ) {
+                    const offer = Array.isArray(node.offers)
+                      ? node.offers[0]
+                      : node.offers;
+                    found.push({
+                      nombre: node.name || "",
+                      precio: offer
+                        ? offer.price
+                          ? offer.priceCurrency
+                            ? offer.priceCurrency + " " + offer.price
+                            : offer.price
+                          : ""
+                        : "",
+                      sku: node.sku || node.productID || "",
+                      imagen: Array.isArray(node.image)
+                        ? node.image[0]
+                        : node.image || "",
+                      url: node.url ? absoluteUrl(baseUrl, node.url) : baseUrl,
+                    });
+                  }
+                });
+              });
+            } catch (e) {
+              /* invalid json-ld, skip */
+            }
+          });
+          return found;
+        }
+
+        // Generic words found in alt text / class names that don't actually
+        // describe a product, so they shouldn't be used as the product name.
+        const GENERIC_NAME_WORDS =
+          /^(img|imagen|image|photo|foto|thumbnail|curso|product|item)[\s\-_]?\d*$/i;
+
+        // Turns a URL slug like "el-arte-de-hornear-galletas" or
+        // "masterclass-en-chantilly-producto" into a readable title.
+        function nameFromSlug(url) {
+          try {
+            const path = new URL(url).pathname.replace(/\/+$/, "");
+            let slug = path.split("/").filter(Boolean).pop() || "";
+            slug = slug.replace(/-producto$/i, "");
+            slug = slug.replace(/[-_]+/g, " ").trim();
+            if (!slug) return "";
+            return slug.charAt(0).toUpperCase() + slug.slice(1);
+          } catch (e) {
+            return "";
+          }
+        }
+
+        function extractFromSelector(doc, baseUrl, selector) {
+          const nodes = doc.querySelectorAll(selector);
+          const found = [];
+          nodes.forEach((node) => {
+            const text = node.textContent || "";
+            const priceMatch = text.match(PRICE_REGEX);
+            const img = node.matches("img") ? node : node.querySelector("img");
+            // The matched node itself may already be the link (e.g. selector
+            // "a[href*='/producto/']"), or the link may be nested inside it.
+            const link = node.matches("a[href]")
+              ? node
+              : node.querySelector("a[href]");
+            const titleEl = node.querySelector(
+              'h1,h2,h3,h4,[class*="title"],[class*="name"]',
+            );
+
+            let nombre = titleEl ? titleEl.textContent.trim() : "";
+            if (
+              !nombre &&
+              img &&
+              img.alt &&
+              !GENERIC_NAME_WORDS.test(img.alt.trim())
+            ) {
+              nombre = img.alt.trim();
+            }
+            if (!nombre && link) {
+              nombre = nameFromSlug(
+                absoluteUrl(baseUrl, link.getAttribute("href")),
+              );
+            }
+            if (!nombre) return; // skip nodes without any identifiable name
+
+            found.push({
+              nombre: nombre.slice(0, 180),
+              precio: priceMatch ? priceMatch[0].trim() : "",
+              sku: "",
+              imagen: img
+                ? absoluteUrl(
+                    baseUrl,
+                    img.getAttribute("src") ||
+                      img.getAttribute("data-src") ||
+                      "",
+                  )
+                : "",
+              url: link
+                ? absoluteUrl(baseUrl, link.getAttribute("href"))
+                : baseUrl,
+            });
+          });
+          return found;
+        }
+
+        function autoDetectSelector(doc) {
+          for (const sel of CANDIDATE_SELECTORS) {
+            const nodes = doc.querySelectorAll(sel);
+            if (nodes.length >= 3) return sel;
+          }
+          return null;
+        }
+
+        function dedupe(list) {
+          const seen = new Set();
+          return list.filter((p) => {
+            const key = (p.nombre + "|" + p.url).toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        }
+
+        // ---------- Main scan flow ----------
+
+        async function runScan() {
+          const targetUrl = urlInput.value.trim();
+          if (!targetUrl) {
+            showToast("Pega una URL para escanear.", "error");
+            return;
+          }
+          let parsedUrl;
+          try {
+            parsedUrl = new URL(targetUrl);
+          } catch (e) {
+            showToast("La URL no es válida.", "error");
+            return;
+          }
+
+          const mode = modeSelect.value;
+          const proxy = proxyInput.value.trim();
+          const manualSelector = selectorInput.value.trim();
+          const limit = parseInt(limitInput.value, 10) || 0;
+
+          setScanning(true);
+          resetLog();
+          resultsSection.classList.remove("visible");
+          emptyState.classList.remove("visible");
+          products = [];
+
+          logLine(
+            '<span class="tag">[init]</span> objetivo: ' + parsedUrl.href,
+          );
+
+          let doc = null;
+          let usedMode = "";
+
+          try {
+            if (mode !== "dynamic") {
+              logLine('<span class="tag">[estático]</span> descargando HTML…');
+              const html = await fetchHtml(parsedUrl.href, proxy);
+              logLine(
+                '<span class="tag">[diagnóstico]</span> HTML recibido: ' +
+                  html.length +
+                  " caracteres.",
+              );
+              const parser = new DOMParser();
+              doc = parser.parseFromString(html, "text/html");
+              usedMode = "static";
+              if (manualSelector) {
+                const rawMatches = doc.querySelectorAll(manualSelector).length;
+                logLine(
+                  '<span class="tag">[diagnóstico]</span> selector "' +
+                    manualSelector +
+                    '" coincide con ' +
+                    rawMatches +
+                    " elemento(s) en el HTML.",
+                );
+              }
+            }
+          } catch (e) {
+            logLine('<span class="err">[estático]</span> falló: ' + e.message);
+            doc = null;
+          }
+
+          let staticCandidate = null;
+          if (doc) {
+            staticCandidate = manualSelector || autoDetectSelector(doc);
+            const jsonLdItems = extractFromJsonLd(doc, parsedUrl.href);
+            const selectorItems = staticCandidate
+              ? extractFromSelector(doc, parsedUrl.href, staticCandidate)
+              : [];
+            const combined = dedupe([...jsonLdItems, ...selectorItems]);
+
+            if (combined.length > 0) {
+              products = combined;
+              logLine(
+                '<span class="ok">[estático]</span> ' +
+                  combined.length +
+                  " producto(s) detectado(s).",
+              );
+            } else {
+              logLine(
+                '<span class="tag">[estático]</span> no se detectaron productos en el HTML crudo.',
+              );
+            }
+          }
+
+          if (products.length === 0 && mode !== "static") {
+            try {
+              logLine(
+                '<span class="tag">[dinámico]</span> renderizando página (esperando JavaScript)…',
+              );
+              const renderedDoc = await fetchRenderedDoc(parsedUrl.href, 4500);
+              usedMode = "dynamic";
+              const dynSelector =
+                manualSelector || autoDetectSelector(renderedDoc);
+              const jsonLdItems = extractFromJsonLd(
+                renderedDoc,
+                parsedUrl.href,
+              );
+              const selectorItems = dynSelector
+                ? extractFromSelector(renderedDoc, parsedUrl.href, dynSelector)
+                : [];
+              const combined = dedupe([...jsonLdItems, ...selectorItems]);
+
+              if (combined.length > 0) {
+                products = combined;
+                logLine(
+                  '<span class="ok">[dinámico]</span> ' +
+                    combined.length +
+                    " producto(s) detectado(s).",
+                );
+              } else {
+                logLine(
+                  '<span class="err">[dinámico]</span> tampoco se detectaron productos.',
+                );
+              }
+            } catch (e) {
+              logLine(
+                '<span class="err">[dinámico]</span> falló: ' + e.message,
+              );
+              logLine(
+                '<span class="tag">[sugerencia]</span> si el sitio bloquea iframes o CORS, prueba con un proxy en opciones avanzadas.',
+              );
+            }
+          }
+
+          if (limit > 0 && products.length > limit) {
+            products = products.slice(0, limit);
+            logLine(
+              '<span class="tag">[límite]</span> recortado a ' +
+                limit +
+                " producto(s).",
+            );
+          }
+
+          logLine(
+            '<span class="tag">[fin]</span> modo usado: ' +
+              (usedMode || "ninguno"),
+          );
+
+          renderResults();
+          setScanning(false);
+        }
+
+        function renderResults() {
+          resultsBody.innerHTML = "";
+
+          if (products.length === 0) {
+            resultsSection.classList.remove("visible");
+            emptyState.classList.add("visible");
+            exportBtn.disabled = true;
+            return;
+          }
+
+          emptyState.classList.remove("visible");
+          resultsSection.classList.add("visible");
+          resultsCount.textContent =
+            products.length +
+            (products.length === 1 ? " producto" : " productos");
+          exportBtn.disabled = false;
+
+          products.forEach((p) => {
+            const tr = document.createElement("tr");
+
+            const tdImg = document.createElement("td");
+            if (p.imagen) {
+              const img = document.createElement("img");
+              img.className = "cell-thumb";
+              img.src = p.imagen;
+              img.loading = "lazy";
+              img.onerror = () => {
+                img.style.visibility = "hidden";
+              };
+              tdImg.appendChild(img);
+            } else {
+              const placeholder = document.createElement("div");
+              placeholder.className = "cell-thumb";
+              tdImg.appendChild(placeholder);
+            }
+
+            const tdName = document.createElement("td");
+            tdName.className = "cell-name";
+            tdName.textContent = p.nombre || "—";
+            tdName.title = p.nombre || "";
+
+            const tdPrice = document.createElement("td");
+            tdPrice.className = "cell-price";
+            tdPrice.textContent = p.precio || "—";
+
+            const tdSku = document.createElement("td");
+            tdSku.className = "cell-muted";
+            tdSku.textContent = p.sku || "—";
+
+            const tdUrl = document.createElement("td");
+            const link = document.createElement("a");
+            link.className = "cell-link";
+            link.href = p.url;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = (p.url || "")
+              .replace(/^https?:\/\//, "")
+              .slice(0, 40);
+            tdUrl.appendChild(link);
+
+            tr.append(tdImg, tdName, tdPrice, tdSku, tdUrl);
+            resultsBody.appendChild(tr);
+          });
+        }
+
+        // ---------- Export ----------
+
+        function exportToExcel() {
+          if (products.length === 0) return;
+
+          const rows = products.map((p) => ({
+            nombre: p.nombre || "",
+            precio: p.precio || "",
+            sku: p.sku || "",
+            imagen: p.imagen || "",
+            url_origen: p.url || "",
+          }));
+
+          const ws = XLSX.utils.json_to_sheet(rows);
+          ws["!cols"] = [
+            { wch: 38 },
+            { wch: 14 },
+            { wch: 16 },
+            { wch: 42 },
+            { wch: 42 },
+          ];
+
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "Productos");
+
+          const filename =
+            "productos-" + new Date().toISOString().slice(0, 10) + ".xlsx";
+          XLSX.writeFile(wb, filename);
+          showToast("Excel descargado: " + filename, "success");
+        }
+
+        // ---------- Events ----------
+
+        scanBtn.addEventListener("click", () => {
+          if (!isScanning) runScan();
+        });
+        urlInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" && !isScanning) runScan();
+        });
+        exportBtn.addEventListener("click", exportToExcel);
+      })();
+    </script>
+  </body>
+</html>
