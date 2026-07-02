@@ -166,6 +166,21 @@ El Worker es de uso gratuito hasta 100,000 peticiones/día e incluye, comentado 
 
 ## 🗺️ Posibles mejoras futuras
 
+### 🔜 Próximo a desarrollar: filtro de tipo de contenido a escanear
+Hoy Topox siempre extrae el mismo set fijo de campos (nombre, categoría, precio, SKU, imagen, URL). La siguiente mejora es agregar, dentro de **"opciones avanzadas"**, un filtro para elegir **qué tipo de información se quiere escanear**, en vez de traer todo por defecto. Pensado como un grupo de checkboxes (o chips seleccionables) con opciones como:
+
+- **Fotos** — solo extraer las imágenes de producto (URL de imagen + nombre, sin el resto de campos).
+- **Información de entradas** — datos tipo "post"/ficha de producto: nombre, categoría, precio, SKU, descripción corta si está disponible.
+- **Texto plano** — solo el contenido textual visible de cada tarjeta (nombre, precio como texto), sin resolver URLs de imagen ni categoría.
+
+Esto permitiría escaneos más rápidos y enfocados cuando no se necesita el catálogo completo (por ejemplo, migrar solo las fotos de producto a un CDN, o solo levantar un listado de nombres y precios para una cotización). La selección del filtro debería:
+- Ajustar qué columnas se generan en el Excel exportado (ocultando las que no aplican en vez de dejarlas vacías).
+- Reflejarse también en la tabla de vista previa en pantalla.
+- Convivir con el selector CSS manual y el resto de opciones avanzadas existentes, sin reemplazarlas.
+
+De la mano con esto, se rediseñará visualmente el botón/toggle de **"opciones avanzadas"** — hoy es solo texto con una flecha (`▸ opciones avanzadas`) — para que se vea más como un control interactivo real (ej. con un fondo sutil, ícono propio, y una transición más marcada al abrir/cerrar) y no se sienta como una opción escondida o secundaria.
+
+### Otras mejoras
 - [ ] Extracción de datos adicionales visitando cada página de producto individual (descripción larga, variantes, stock), no solo la página de listado.
 - [ ] Soporte para sitios con autenticación (catálogos privados).
 - [ ] Exportación adicional a CSV y JSON.
